@@ -4,4 +4,4 @@ Current deep learning approaches in microbiome analysis often fail to effectivel
 
 Hilbert-Phy addresses these limitations by encoding phylogenetic relationships directly into a 2D image using a Hilbert curve. Its core advantage is the locality-preserving property, which maps evolutionarily related taxa adjacently without needing auxiliary data. This creates a biologically informed structure that allows CNNs to effectively detect local abundance patterns and potential microbial interactions. Moreover, the framework is highly flexible, readily applicable to diverse tasks like classification and longitudinal analysis without structural changes. Evaluations show it consistently outperforms prior methods across multiple benchmarks.
 
-<img src="/home/xiongjiayun/data5/anti_virus/cgy/Hilbert-Phy/Hilbert_phy/framework.png" style="zoom:150%;" />
+<img src="https://github.com/2275836125/Hilbert-Phy/blob/main/framework.png" style="zoom:150%;" />
