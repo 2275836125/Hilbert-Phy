@@ -5,7 +5,50 @@ This tool maps taxonomic abundance data to a Hilbert-curve based representation,
 
 <img src="https://github.com/2275836125/Hilbert-Phy/blob/main/framework.png" style="zoom:150%;" />
 
+## Dependencies
+
+All required dependencies are listed in the `requirements.txt` file. You can install them with:
+
+```bash
+pip install -r requirements.txt
+```
+
+## Notes
+1. The tool automatically downloads NCBI taxonomy database on first run (via ete3)
+2. Output dimensions are determined by the number of taxa (padded to nearest power of 4)
+3. Missing taxa in the abundance profile will be represented as zeros in the output
+4. The Hilbert curve order preserves some spatial locality of phylogenetically related taxa
+
+
 ## CLI Usage Guide
+
+### Examples
+
+#### Basic usage (1D output):
+```bash
+python hilbert_mapping.py \
+  --tax_id tax_ids.npy \
+  --abu_profile abundance.csv \
+  --output hilbert_sequences.npy
+```
+
+#### With 2D image output and verbose logging:
+```bash
+python hilbert_mapping.py \
+  --tax_id tax_ids.npy \
+  --abu_profile abundance.npy \
+  --output hilbert_images.npy \
+  --output_2d \
+  --verbose
+```
+
+#### Using CSV abundance data:
+```bash
+python hilbert_mapping.py \
+  --tax_id /path/to/tax_ids.npy \
+  --abu_profile /path/to/data.csv \
+  --output /path/to/output/hilbert.npy
+```
 
 ### Required Arguments
 
@@ -47,46 +90,3 @@ This tool maps taxonomic abundance data to a Hilbert-curve based representation,
 4. **Hilbert mapping**: Maps ordered taxa to Hilbert curve coordinates
 5. **Data placement**: Places abundance values at corresponding Hilbert coordinates
 6. **Output**: Saves resulting Hilbert representation
-
-### Examples
-
-#### Basic usage (1D output):
-```bash
-python hilbert_mapping.py \
-  --tax_id tax_ids.npy \
-  --abu_profile abundance.csv \
-  --output hilbert_sequences.npy
-```
-
-#### With 2D image output and verbose logging:
-```bash
-python hilbert_mapping.py \
-  --tax_id tax_ids.npy \
-  --abu_profile abundance.npy \
-  --output hilbert_images.npy \
-  --output_2d \
-  --verbose
-```
-
-#### Using CSV abundance data:
-```bash
-python hilbert_mapping.py \
-  --tax_id /path/to/tax_ids.npy \
-  --abu_profile /path/to/data.csv \
-  --output /path/to/output/hilbert.npy
-```
-
-## Dependencies
-
-All required dependencies are listed in the `requirements.txt` file. You can install them with:
-
-```bash
-pip install -r requirements.txt
-```
-
-## Notes
-1. The tool automatically downloads NCBI taxonomy database on first run (via ete3)
-2. Processing time increases with the number of samples and taxa
-3. Output dimensions are determined by the number of taxa (padded to nearest power of 4)
-4. Missing taxa in the abundance profile will be represented as zeros in the output
-5. The Hilbert curve order preserves some spatial locality of phylogenetically related taxa
