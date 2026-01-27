@@ -2,6 +2,7 @@
 
 ## Overview
 This tool maps taxonomic abundance data to a Hilbert-curve based representation, which can be output as either 2D images or 1D sequences. The mapping preserves the phylogenetic relationships between taxa by ordering them according to the taxonomic tree structure.
+
 <img src="https://github.com/2275836125/Hilbert-Phy/blob/main/framework.png" style="zoom:150%;" />
 
 ## CLI Usage Guide
@@ -13,7 +14,6 @@ This tool maps taxonomic abundance data to a Hilbert-curve based representation,
 | `--tax_id` | string (file path) | **Required.** Path to the tax_id list file. Must be in `.npy` format containing an array of taxonomic IDs (integers). |
 | `--abu_profile` | string (file path) | **Required.** Path to the abundance data file. Can be either `.npy` (NumPy array) or `.csv` (CSV file) format. Data should be in samples × tax_ids format. |
 | `--output` | string (file path) | **Required.** Output file path where the Hilbert-mapped data will be saved. Output is saved in `.npy` format. |
-|
 
 ### Optional Arguments
 
@@ -21,11 +21,10 @@ This tool maps taxonomic abundance data to a Hilbert-curve based representation,
 |----------|------|-------------|
 | `--output_2d` | flag | When specified, outputs 2D Hilbert images. When omitted, outputs 1D Hilbert sequences. Default: False (outputs 1D sequences). |
 | `--verbose` | flag | When specified, prints detailed progress information and statistics during processing. |
-|
 
-## File Format Specifications
+### File Format Specifications
 
-### Input Files
+#### Input Files
 1. **tax_id file** (`.npy`):
    - NumPy array of taxonomic IDs (integers)
    - Shape: `(n_taxa,)` where n_taxa is the number of taxonomic features
@@ -36,12 +35,12 @@ This tool maps taxonomic abundance data to a Hilbert-curve based representation,
    - **`.csv`**: CSV file where rows are samples and columns are taxa
    - Values should represent abundance/read counts for each taxon
 
-### Output File
+#### Output File
 - **`.npy`**: NumPy array containing Hilbert-mapped data
   - If `--output_2d`: Shape is `(n_samples, n, n)` where n is determined by padding to nearest power of 4
   - If not `--output_2d`: Shape is `(n_samples, n*n)` (flattened Hilbert order)
 
-## Processing Steps
+### Processing Steps
 1. **Taxonomic tree extraction**: Uses NCBI taxonomy database to get phylogenetic relationships
 2. **Leaf node ordering**: Reorders taxa according to taxonomic tree leaf traversal
 3. **Padding**: Pads to nearest power of 4 for Hilbert curve generation
@@ -49,9 +48,9 @@ This tool maps taxonomic abundance data to a Hilbert-curve based representation,
 5. **Data placement**: Places abundance values at corresponding Hilbert coordinates
 6. **Output**: Saves resulting Hilbert representation
 
-## Examples
+### Examples
 
-### Basic usage (1D output):
+#### Basic usage (1D output):
 ```bash
 python hilbert_mapping.py \
   --tax_id tax_ids.npy \
@@ -59,7 +58,7 @@ python hilbert_mapping.py \
   --output hilbert_sequences.npy
 ```
 
-### With 2D image output and verbose logging:
+#### With 2D image output and verbose logging:
 ```bash
 python hilbert_mapping.py \
   --tax_id tax_ids.npy \
@@ -69,7 +68,7 @@ python hilbert_mapping.py \
   --verbose
 ```
 
-### Using CSV abundance data:
+#### Using CSV abundance data:
 ```bash
 python hilbert_mapping.py \
   --tax_id /path/to/tax_ids.npy \
@@ -84,7 +83,6 @@ All required dependencies are listed in the `requirements.txt` file. You can ins
 ```bash
 pip install -r requirements.txt
 ```
-
 
 ## Notes
 1. The tool automatically downloads NCBI taxonomy database on first run (via ete3)
