@@ -195,7 +195,7 @@ The following modules are outside the default 325 internal tasks.
 
 ### External evaluation
 
-[`external_validation/`](biome_classification/model_training/external_validation/) performs inference with existing fold checkpoints and evaluates known labels. It requires a separately prepared local `data/` bundle with counts, labels, a feature table, and normalization denominators. **This repository does not select the external dataset or provide its raw samples.** Samples with missing or previously unseen labels receive predictions but do not enter closed-set metrics. From `biome_classification/`:
+[`external_validation/`](biome_classification/model_training/external_validation/) performs inference with existing fold checkpoints and evaluates known labels. It requires a separately prepared local `data/` bundle with counts, labels, a feature table, and normalization denominators. Samples with missing or previously unseen labels receive predictions but do not enter closed-set metrics. From `biome_classification/`:
 
 ```bash
 python model_training/external_validation/prepare.py
