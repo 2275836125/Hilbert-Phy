@@ -1,0 +1,7 @@
+# CPU checks used Python 3.10 and the existing torch_env.
+# Select a matching PyTorch wheel index for your own CPU/CUDA environment.
+numpy==2.2.6
+scipy==1.15.2
+scikit-learn==1.7.2
+torch==2.6.0
+torchvision==0.21.0

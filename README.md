@@ -1,92 +1,219 @@
-# Hilbert-Phy - A Two-Dimensional Encoding Method for Microbiome Data Analysis
+# Hilbert-Phy
 
-## Overview
-This tool maps taxonomic abundance data to a Hilbert-curve based representation, which can be output as either 2D images or 1D sequences. The mapping preserves the phylogenetic relationships between taxa by ordering them according to the taxonomic tree structure.
+**Hilbert-Phy** is a modular, phylogeny-aware encoding for microbiome taxon-abundance profiles. It uses the NCBI Taxonomy hierarchy to order taxa and a Hilbert curve to place them on a two-dimensional grid. Each taxon occupies a fixed position within a dataset, so downstream models can use the images while image positions remain traceable to taxa.
 
-<img src="https://github.com/2275836125/Hilbert-Phy/blob/main/framework.png" style="zoom:150%;" />
+![Hilbert-Phy encoding: taxonomy hierarchy, taxon ordering and Hilbert indexing, and one sample's abundance image](assets/hilbert-phy-encoding.png)
 
-## Dependencies
+*Hilbert-Phy encoding (Figure 1a of the paper). (i) The NCBI Taxonomy hierarchy organizes taxa. (ii) A 16-genus schematic shows the taxonomy-derived order and its Hilbert-grid positions. (iii) The same mapping places one sample's normalized abundances at fixed pixel coordinates; outlined regions correspond to the highlighted taxonomic groups.*
 
-All required dependencies are listed in the `requirements.txt` file. You can install them with:
+
+The paper evaluates these images in biome and disease classification, longitudinal phenotype classification, and temporal microbial community generation. This repository provides a runnable encoding example and the five-level biome-classification workflow, including 13 model configurations and five-fold evaluation. 
+
+| Component | What it contains | Data requirement |
+|---|---|---|
+| [`encoding_example/`](encoding_example/) | Standalone CLI and two-sample demonstration of taxonomy ordering, padding, and Hilbert encoding | NumPy inputs generated locally and an ete3 NCBI taxonomy database |
+| [`biome_classification/data_processing/`](biome_classification/data_processing/) | Prepared-data import, raw-count processing, NCBI matching and ordering, Hilbert indices | Prepared `DATASET` bundle or the corresponding raw MGnify inputs |
+| [`biome_classification/model_training/`](biome_classification/model_training/) | ResNet, phylogeny-aware, and classical baselines; internal evaluation and optional analyses | Prepared training data; optional analyses need additional inputs |
+
+## Minimal encoding example
+
+The example works on Windows and Linux with Python 3.10 or later. From the repository root:
 
 ```bash
-pip install -r requirements.txt
+cd encoding_example
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python demo.py
 ```
 
-## Notes
-1. The tool automatically downloads NCBI taxonomy database on first run (via ete3)
-2. Output dimensions are determined by the number of taxa (padded to nearest power of 4)
-3. Missing taxa in the abundance profile will be represented as zeros in the output
-4. The Hilbert curve order preserves some spatial locality of phylogenetically related taxa
+On Windows PowerShell, use `.\.venv\Scripts\Activate.ps1` instead of the `source` command. If you already have an ete3 taxonomy database, run `python demo.py --dbfile /path/to/taxa.sqlite`.
 
+The demo generates two samples with three tax IDs, encodes them, and checks the output. To run the encoder directly, generate the inputs and call [`encode.py`](encoding_example/encode.py):
 
-## CLI Usage Guide
-
-### Examples
-
-#### Basic usage (1D output):
 ```bash
-python hilbert_mapping.py \
-  --tax_id tax_ids.npy \
-  --abu_profile abundance.csv \
-  --output hilbert_sequences.npy
+python - <<'PY'
+import numpy as np
+
+# Escherichia coli, Staphylococcus aureus, Pseudomonas aeruginosa
+np.save('tax_ids.npy', np.array([562, 1280, 287], dtype=np.int64))
+# Rows are samples; columns follow the tax ID order above.
+np.save('abundance.npy', np.array([[1., 2., 3.], [4., 5., 6.]]))
+PY
+
+python encode.py --tax-ids tax_ids.npy --abundance abundance.npy --output encoded.npy
 ```
 
-#### With 2D image output and verbose logging:
+The output has shape `(2, 2, 2)`: three input values and one padded zero per sample. Check the values without assuming exact pixel coordinates:
+
 ```bash
-python hilbert_mapping.py \
-  --tax_id tax_ids.npy \
-  --abu_profile abundance.npy \
-  --output hilbert_images.npy \
-  --output_2d \
-  --verbose
+python - <<'PY'
+import numpy as np
+
+abundance = np.load('abundance.npy', allow_pickle=False)
+encoded = np.load('encoded.npy', allow_pickle=False)
+assert encoded.shape == (2, 2, 2), encoded.shape
+expected = np.concatenate([abundance, np.zeros((2, 1))], axis=1)
+np.testing.assert_array_equal(
+    np.sort(encoded.reshape(2, 4), axis=1),
+    np.sort(expected, axis=1),
+)
+PY
 ```
 
-#### Using CSV abundance data:
+The check preserves repeated values. Pixel coordinates can change with the taxonomy database version, so use the same database version when exact coordinates matter. Generated `.npy` files are excluded by the repository's `.gitignore`.
+
+ete3 uses `~/.etetoolkit/taxa.sqlite` by default. On first use it may download the NCBI taxdump and build the database, which requires internet access, a writable home directory, and disk space. An existing SQLite database can be passed with `--dbfile /path/to/taxa.sqlite`; do not pass a raw taxdump archive. The example does not need PyTorch.
+
+## Biome-classification data
+
+`DATASET` is a local name for the prepared training-data. It is not supplied in this source directory. Raw inputs come from MGnify SSU taxonomy abundance tables and are matched to NCBI Taxonomy. The documented preparation path is:
+
+```text
+263,302 samples with labels at five biome levels
+-> raw counts matched by run ID for 262,942 samples
+-> terminal genus records, NCBI matching, and merging by tax ID: 10,437 genera
+-> genera observed in >50 samples; top 4,096 by mean relative abundance
+-> samples with >=20 detected selected genera: 238,419 samples
+-> NCBI taxonomy post-order feature order and a 64x64 Hilbert index
+```
+
+Counts from species records are not additionally aggregated into training genera. Mean relative abundance uses the count total across all 10,437 matched genera as the denominator. Sibling nodes are visited in ascending numeric tax ID order. The original experiments used taxonomy dump files dated 2024-10-28 for internal nodes and names; preserve that version to reproduce the feature order.
+
+### Import a prepared bundle
+
+The exact file and array interface is documented at the top of [`filter_data.py`](biome_classification/data_processing/filter_data.py). The `--input` path must point to the prepared bundle's `data_processing` directory. On Linux or WSL, from the repository root:
+
 ```bash
-python hilbert_mapping.py \
-  --tax_id /path/to/tax_ids.npy \
-  --abu_profile /path/to/data.csv \
-  --output /path/to/output/hilbert.npy
+cd biome_classification
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python data_processing/filter_data.py import --help
+python data_processing/filter_data.py import --input /path/to/DATASET_A --check-only
+python data_processing/filter_data.py import --input /path/to/DATASET_A
 ```
 
-### Required Arguments
+`--check-only` checks that required files exist; it does not validate their numerical contents. Importing copies the files into the local `data_processing/` tree and refuses to overwrite existing inputs. Training preparation later checks matrix dimensions, IDs, feature order, and source mappings. Add `--marine` to the import command if the marine analysis needs unpacked taxonomy files. Full classification runs use `fcntl` file locks and require Linux or WSL.
 
-| Argument | Type | Description |
-|----------|------|-------------|
-| `--tax_id` | string (file path) | **Required.** Path to the tax_id list file. Must be in `.npy` format containing an array of taxonomic IDs (integers). |
-| `--abu_profile` | string (file path) | **Required.** Path to the abundance data file. Can be either `.npy` (NumPy array) or `.csv` (CSV file) format. Data should be in samples × tax_ids format. |
-| `--output` | string (file path) | **Required.** Output file path where the Hilbert-mapped data will be saved. Output is saved in `.npy` format. |
+### Process raw tables instead
 
-### Optional Arguments
+The three data-processing modules have distinct roles:
 
-| Argument | Type | Description |
-|----------|------|-------------|
-| `--output_2d` | flag | When specified, outputs 2D Hilbert images. When omitted, outputs 1D Hilbert sequences. Default: False (outputs 1D sequences). |
-| `--verbose` | flag | When specified, prints detailed progress information and statistics during processing. |
+| File | Role |
+|---|---|
+| [`filter_data.py`](biome_classification/data_processing/filter_data.py) | Match raw counts by run ID, extract terminal `g__` records, select features and samples, or import `DATASET` |
+| [`ncbi.py`](biome_classification/data_processing/ncbi.py) | Extract taxonomy files, match and merge genera, and produce the post-order taxon sequence |
+| [`hilbert_phy.py`](biome_classification/data_processing/hilbert_phy.py) | Generate the 64×64 Hilbert permutation or encode a dense abundance array |
 
-### File Format Specifications
+Place `mgnify_biomes.csv`, `raw_data/studies/*/abundance/`, and `taxdump.tar.gz` according to the input interface. If a run has several pipeline versions, the highest numeric version is used; counts from different runs are not combined. From `biome_classification/`:
 
-#### Input Files
-1. **tax_id file** (`.npy`):
-   - NumPy array of taxonomic IDs (integers)
-   - Shape: `(n_taxa,)` where n_taxa is the number of taxonomic features
-   - Must correspond to the columns in the abundance profile
+```bash
+python data_processing/filter_data.py match-counts
+python data_processing/filter_data.py genus
+python data_processing/ncbi.py extract
+python data_processing/ncbi.py match
+python data_processing/filter_data.py select
+python data_processing/ncbi.py order
+python data_processing/hilbert_phy.py indices
+```
 
-2. **abu_profile file** (`.npy` or `.csv`):
-   - **`.npy`**: NumPy array with shape `(n_samples, n_taxa)`
-   - **`.csv`**: CSV file where rows are samples and columns are taxa
-   - Values should represent abundance/read counts for each taxon
+`genus` keeps records with a nonempty terminal `g__` entry and does not roll species records up to genus. `select` runs `features` and `samples`: it removes genera observed in at most 50 samples, selects the top 4,096 by mean relative abundance, then keeps samples with at least 20 detected selected genera. It does not filter biome labels by class. `order` updates the training matrix, feature table, and column mapping; do not repeat it for a prepared bundle that is already post-order. Integer counts remain unchanged during data processing. Abundance normalization happens in training.
 
-#### Output File
-- **`.npy`**: NumPy array containing Hilbert-mapped data
-  - If `--output_2d`: Shape is `(n_samples, n, n)` where n is determined by padding to nearest power of 4
-  - If not `--output_2d`: Shape is `(n_samples, n*n)` (flattened Hilbert order)
+To encode a separate dense samples-by-features array from `biome_classification/`:
 
-### Processing Steps
-1. **Taxonomic tree extraction**: Uses NCBI taxonomy database to get phylogenetic relationships
-2. **Leaf node ordering**: Reorders taxa according to taxonomic tree leaf traversal
-3. **Padding**: Pads to nearest power of 4 for Hilbert curve generation
-4. **Hilbert mapping**: Maps ordered taxa to Hilbert curve coordinates
-5. **Data placement**: Places abundance values at corresponding Hilbert coordinates
-6. **Output**: Saves resulting Hilbert representation
+```bash
+# Array already ordered by taxonomy post-order:
+python data_processing/hilbert_phy.py encode --input abundance.npy --output encoded.npy
+# Unordered columns corresponding to tax_ids.npy:
+python data_processing/hilbert_phy.py encode --input abundance.npy --tax-ids tax_ids.npy --output encoded.npy
+```
+
+Inputs must be finite and nonnegative. Encoding does not normalize or quantize them. The permutation maps row-major pixel positions to indices in the ordered vector, so the image is `padded[:, hilbert].reshape(samples, side, side)`.
+
+## Model training and internal evaluation
+
+The default [`run_pipeline.py`](biome_classification/run_pipeline.py) runs all five biome levels and five folds for 13 model configurations, then combines their results:
+
+| Model family | Configurations | Entry point |
+|---|---:|---|
+| Hilbert and rowwise ResNet-18/34/50; 1D ResNet-18 | 7 | [`model_training/train.py`](biome_classification/model_training/train.py) |
+| DeepPhylo taxonomy and PopPhy-CNN | 2 | [`phylogeny_baselines/train.py`](biome_classification/model_training/phylogeny_baselines/train.py) |
+| Random forest and logistic regression, each with original/random column order | 4 | [`classical_order_control/train.py`](biome_classification/model_training/classical_order_control/train.py) |
+
+That is `13 × 5 × 5 = 325` configuration-level-fold tasks. [`common.py`](biome_classification/model_training/common.py) handles the shared ResNet splits, normalization, training, and metrics; [`models.py`](biome_classification/model_training/models.py) defines the networks and input layouts. The tree-model baselines have their own tree construction, data transformation, and network modules. They are adaptations to the NCBI genus tree, not exact reproductions of every setting in the original methods' papers.
+
+From `biome_classification/`, inspect the commands before running them:
+
+```bash
+python run_pipeline.py --dry-run
+python run_pipeline.py --device cpu
+# For a GPU: python run_pipeline.py --device cuda:0
+```
+
+For one path using real project data:
+
+```bash
+python model_training/train.py --encoding hilbert --level 1 --fold 1 --prepare-only
+python model_training/train.py --encoding hilbert --level 1 --fold 1 --resnet 18 --smoke --epochs 1 --device cpu
+```
+
+The smoke run still needs the prepared data and uses the full training partition to fit normalization. Its output is separate from formal results. Preparing all 25 fold caches may require about 91 GiB, plus space for checkpoints; a complete CPU run can take a long time.
+
+### Training protocol
+
+- Each biome level is modeled separately. Empty, `NA`, and `None` labels and classes with fewer than 100 samples are excluded, so levels have different evaluation sets.
+- Outer splits use `StratifiedKFold(5, shuffle=True, random_state=0)`. A stratified 20% of each outer training pool is used for validation, giving approximately 64% training, 16% validation, and 20% testing overall.
+- The 4,096 genera and minimum-20-genera cohort are selected **globally before cross-validation**. Within each fold, per-genus min-max normalization is fitted only on its training samples. Constant columns are set to zero, and validation/test values are not clipped.
+- Hilbert, rowwise, and 1D inputs use the same numerical values. The two-dimensional ResNets are single-channel models trained without pretrained weights.
+- Neural networks use cross-entropy loss, Adam, learning rate 0.001, batch size 32, and at most 200 epochs. The best checkpoint is chosen by validation loss, with early stopping after 10 epochs without improvement.
+- Outputs include accuracy, Macro-F1, and one-vs-rest Macro-AUROC. Reports give five-fold means and sample standard deviations, with pooled out-of-fold metrics listed separately.
+
+The fixed global feature and sample selection should not be described as fold-local selection. Internal splits are by sample rather than by study, so internal scores do not by themselves establish cross-study generalization.
+
+### Outputs
+
+New runs write under these paths within `biome_classification/`:
+
+```text
+model_training/shared_cache/                          # splits and train-fitted normalization
+model_training/results/experiments/                   # seven ResNet configurations
+model_training/phylogeny_baselines/*/results/formal/   # two tree-model baselines
+model_training/classical_order_control/results/       # four classical configurations
+model_training/results/training_results_summary.md
+model_training/results/training_fold_metrics.csv
+model_training/results/training_method_level_summary.csv
+```
+
+Individual runs save their configuration, predictions, and metrics; neural-network runs also save best and latest checkpoints. Run `python model_training/results/summarize_training.py` to rebuild the summary. Completed tasks can be skipped and neural-network training can resume, but changed inputs or code signatures need new cache and result directories.
+
+This source directory currently contains the [aggregation script](biome_classification/model_training/results/summarize_training.py) but no generated training results. Historical aggregate tables, if distributed separately under `biome_classification/reference_results/`, describe earlier experiments and do not show that this code revision has rerun them.
+
+## Optional analyses
+
+The following modules are outside the default 325 internal tasks.
+
+### External evaluation
+
+[`external_validation/`](biome_classification/model_training/external_validation/) performs inference with existing fold checkpoints and evaluates known labels. It requires a separately prepared local `data/` bundle with counts, labels, a feature table, and normalization denominators. **This repository does not select the external dataset or provide its raw samples.** Samples with missing or previously unseen labels receive predictions but do not enter closed-set metrics. From `biome_classification/`:
+
+```bash
+python model_training/external_validation/prepare.py
+python model_training/external_validation/evaluate.py --device cpu --model hilbert_resnet18 hilbert_resnet34 hilbert_resnet50 rowwise_resnet18 rowwise_resnet34 rowwise_resnet50 1d_resnet18 deepphylo_taxonomy popphy_cnn random_forest_rowwise random_forest_random logistic_regression_rowwise logistic_regression_random
+```
+
+The exact input contract is implemented by [`ExternalData`](biome_classification/model_training/external_validation/foundation.py). Inference uses each trained fold's parameters without refitting. Historical external summaries, if separately supplied, do not replace the required data and checkpoints.
+
+### Marine interpretation
+
+[`gradcam_marine_reanalysis/`](biome_classification/model_training/gradcam_marine_reanalysis/) uses five Level 3 Hilbert-ResNet-18 models. Import the bundle with `--marine` to include unpacked taxonomy files, then run from `biome_classification/`:
+
+```bash
+python model_training/gradcam_marine_reanalysis/run.py --output model_training/gradcam_marine_reanalysis/results/formal_v1
+python model_training/gradcam_marine_reanalysis/tools.py predict --output model_training/gradcam_marine_reanalysis/results/formal_v1
+python model_training/gradcam_marine_reanalysis/tools.py audit --output model_training/gradcam_marine_reanalysis/results/formal_v1
+python model_training/gradcam_marine_reanalysis/tools.py plot --output model_training/gradcam_marine_reanalysis/results/formal_v1
+python model_training/gradcam_marine_reanalysis/tools.py report --output model_training/gradcam_marine_reanalysis/results/formal_v1
+```
+
+The analysis combines Grad-CAM, training-set abundance associations, and test-input perturbations. These outputs describe model attention and sensitivity, not ecological causation by individual genera. Literature-search materials and manual review records are not included.

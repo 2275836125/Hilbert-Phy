@@ -1,0 +1,14 @@
+{
+  "seed": 0,
+  "n_splits": 5,
+  "validation_fraction": 0.2,
+  "minimum_class_count": 100,
+  "batch_size": 32,
+  "learning_rate": 0.001,
+  "max_epochs": 200,
+  "patience": 10,
+  "missing_tokens_case_insensitive": ["na", "none"],
+  "standard_deviation_ddof": 1,
+  "feature_selection": "fixed globally preselected 4096 genera; no fold-local selection",
+  "denominator": "all 10437 NCBI-matched genera"
+}
