@@ -170,11 +170,8 @@ model_training/results/training_method_level_summary.csv
 
 Individual runs save their configuration, predictions, and metrics; neural-network runs also save best and latest checkpoints. Run `python model_training/results/summarize_training.py` to rebuild the summary. Completed tasks can be skipped and neural-network training can resume, but changed inputs or code signatures need new cache and result directories.
 
-This source directory currently contains the [aggregation script](biome_classification/model_training/results/summarize_training.py) but no generated training results. Historical aggregate tables, if distributed separately under `biome_classification/reference_results/`, describe earlier experiments and do not show that this code revision has rerun them.
+Historical aggregate tables, if distributed separately under `biome_classification/reference_results/`, describe earlier experiments and do not show that this code revision has rerun them.
 
-## Optional analyses
-
-The following modules are outside the default 325 internal tasks.
 
 ### External evaluation
 
@@ -199,4 +196,4 @@ python model_training/gradcam_marine_reanalysis/tools.py plot --output model_tra
 python model_training/gradcam_marine_reanalysis/tools.py report --output model_training/gradcam_marine_reanalysis/results/formal_v1
 ```
 
-The analysis combines Grad-CAM, training-set abundance associations, and test-input perturbations. These outputs describe model attention and sensitivity, not ecological causation by individual genera. Literature-search materials and manual review records are not included.
+The analysis combines Grad-CAM, training-set abundance associations, and test-input perturbations. These outputs describe model attention and sensitivity, not ecological causation by individual genera. 
