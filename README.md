@@ -143,23 +143,6 @@ The default [`run_pipeline.py`](biome_classification/run_pipeline.py) runs all f
 
 That is `13 × 5 × 5 = 325` configuration-level-fold tasks. [`common.py`](biome_classification/model_training/common.py) handles the shared ResNet splits, normalization, training, and metrics; [`models.py`](biome_classification/model_training/models.py) defines the networks and input layouts. The tree-model baselines have their own tree construction, data transformation, and network modules. They are adaptations to the NCBI genus tree, not exact reproductions of every setting in the original methods' papers.
 
-From `biome_classification/`, inspect the commands before running them:
-
-```bash
-python run_pipeline.py --dry-run
-python run_pipeline.py --device cpu
-# For a GPU: python run_pipeline.py --device cuda:0
-```
-
-For one path using real project data:
-
-```bash
-python model_training/train.py --encoding hilbert --level 1 --fold 1 --prepare-only
-python model_training/train.py --encoding hilbert --level 1 --fold 1 --resnet 18 --smoke --epochs 1 --device cpu
-```
-
-The smoke run still needs the prepared data and uses the full training partition to fit normalization. Its output is separate from formal results. Preparing all 25 fold caches may require about 91 GiB, plus space for checkpoints; a complete CPU run can take a long time.
-
 ### Training protocol
 
 - Each biome level is modeled separately. Empty, `NA`, and `None` labels and classes with fewer than 100 samples are excluded, so levels have different evaluation sets.
